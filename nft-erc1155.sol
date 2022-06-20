@@ -22,6 +22,9 @@ contract ThatGuyNFT1155 is ERC1155Burnable, Ownable {
     mapping (uint256 => uint256) public NFTPrice;
     mapping (uint256 => uint256) public NFTRoyalty;
 
+    uint256 public serviceCharge;
+    address public serviceProvider;
+
     constructor() ERC1155("ThatGuyNFT") {}
     
     /**
@@ -37,7 +40,7 @@ contract ThatGuyNFT1155 is ERC1155Burnable, Ownable {
     function mintBulkNFT(address recipient, uint256 amount, string memory tokenURI, uint256 royalty) external returns (uint256[] memory) {
         uint256[] memory amts = new uint256[](amount);
         uint256[] memory ids = new uint256[](amount);
-        for(uint i=0;i<amount;i++){
+        for(uint i=0; i<amount; i++){
             amts[i] = 1;
             _tokenIDs.increment();
             ids[i] = _tokenIDs.current();
@@ -77,20 +80,24 @@ contract ThatGuyNFT1155 is ERC1155Burnable, Ownable {
         uint256 price = NFTPrice[_tokenID];
         address orgArtist = Creator[_tokenID];
         uint256 royalty = (price * NFTRoyalty[_tokenID]) / 1000;
+        uint256 sCharge = (price * serviceCharge) / 1000;
 
         require(price > 0, 'The NFT is not listed or available for sale');
-        require((msg.value) == price, "Error: The price doesn't match the value.");
+        require((msg.value - sCharge) == price, "Error: The price doesn't match the value.");
         _safeTransferFrom(sourceAdr, destinationAdr, _tokenID, 1, "0x");
 
         if((sourceAdr != orgArtist) && (destinationAdr != orgArtist)){
-            // send the ETH royalty to creater
+            // Send the ETH royalty to creater
             payable(orgArtist).transfer(royalty); 
-            // send the ETH to the owner
-            payable(fromaddr).transfer(price - royalty);
+            // Send the ETH to the owner
+            payable(fromaddr).transfer(price - royalty - sCharge);
         } else {
-            // send the ETH to the owner without royalty
-            payable(sourceAdr).transfer(price);
+            // Send the ETH to the owner without royalty
+            payable(sourceAdr).transfer(price - sCharge);
         }
+
+        // Send the service charger to the platform owner.
+        payable(serviceProvider).transfer( sCharge * 2); 
 
         emit NFTBought(sourceAdr, destinationAdr, price);
     }
@@ -113,6 +120,21 @@ contract ThatGuyNFT1155 is ERC1155Burnable, Ownable {
         _burn(msg.sender, _tokenID, value);
 
         emit NFTBurned(_tokenID, value);
+    }
+
+
+    /**
+     *
+     *      setServiceCharge: To declare the service charges. A set percentage of the sale shall be paid to service provider / platform.
+     *      @param percentage: A set percentage to be paid to the service provider / platform.
+     *      @param providerAdr: Service Provider / Platform address (key) to where the service charge should be paid/transfered. 
+     *
+     *      @returns A tuple consisting the declared service charge percentage and service provider address respectively.
+    **/
+    function setServiceCharge(uint256 percentage, address providerAdr) external onlyOwner returns (uint256, address){
+        serviceCharge = percentage;
+        serviceProvider = providerAdr;
+        return (serviceCharge, serviceProvider);
     }
 
 }
