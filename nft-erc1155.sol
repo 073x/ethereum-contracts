@@ -1,8 +1,10 @@
-/*
-	Author: HK (0xThatGuy)
-	Git: https://github.com/0xthatguy
-	Desc: A ERC1155 based contract to mint multiple NFTs. 
-*/
+/**
+ *
+ * 	Author: HK (0xThatGuy)
+ *	Git: https://github.com/0xthatguy
+ *	Desc: A ERC1155 based contract to mint multiple/bulk NFTs. 
+ *
+**/
 
 pragma solidity ^0.8.0;
 
@@ -11,6 +13,7 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.3
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.3/contracts/utils/Counters.sol";
 
 contract ThatGuyNFT1155 is ERC1155Burnable, Ownable {
+    event NFTBought(address _sourceAdr, address _destinationAdr, uint256 _price);
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIDs;
     mapping (uint256 => address) public originalArtist;
@@ -42,15 +45,38 @@ contract ThatGuyNFT1155 is ERC1155Burnable, Ownable {
     }
 
     /**
-    *
-    *       listNFT: To list user's NFTs (To avail NFT for sale).
-    *       @param _tokenID: NFT ID/Hash.
-    *       @param _price: Price of NFT.
-    *
-    */
+     *
+     *       listNFT: To list user's NFTs (To avail NFT for sale).
+     *       @param _tokenID: NFT ID/Hash.
+     *       @param _price: Price of NFT.
+     *
+    **/
     function listNFT(uint256 _tokenID, uint256 _price) external {
         require(balanceOf(msg.sender, _tokenID) > 0, "Authorization Error: NFT doesn't belong to the user.");
         require(_price > 0, 'Price must be greater than zero');
         NFTPrice[_tokenID] = _price;
     }
+
+
+
+    /**
+     *
+     *      buyNFT: Sell NFT(s)
+     *      @param sourceAdr: Seller/Owner address (key).
+     *      @param destinationAdr: Buyer address (key).
+     *      @param _tokenID: NFT ID (hash).
+     *
+     *      @eventEmitter NFTBought: To notify info regarding the transaction.
+    **/
+    function buyNFT(address sourceAdr, address destinationAdr, uint256 _tokenID) external payable {
+        uint256 price = NFTPrice[_tokenID];
+        address orgArtist = originalArtist[_tokenID];
+        require(price > 0, 'The NFT is not listed or available for sale');
+        require((msg.value) == price, "Error: The price doesn't match the value.");
+        _safeTransferFrom(sourceAdr, destinationAdr, _tokenID, 1, "0x");
+        payable(sourceAdr).transfer(price);
+
+        emit NFTBought(sourceAdr, destinationAdr, price);
+    }
+
 }
