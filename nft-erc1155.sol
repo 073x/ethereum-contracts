@@ -14,6 +14,7 @@ contract ThatGuyNFT1155 is ERC1155Burnable, Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIDs;
     mapping (uint256 => address) public originalArtist;
+    mapping (uint256 => uint256) public NFTPrice;
     constructor() ERC1155("ThatGuyNFT") {}
     
     /**
@@ -39,5 +40,17 @@ contract ThatGuyNFT1155 is ERC1155Burnable, Ownable {
         _mintBatch(recipient, ids, amts, extra);
         return ids;
     }
-    
+
+    /**
+    *
+    *       listNFT: To list user's NFTs (To avail NFT for sale).
+    *       @param _tokenID: NFT ID/Hash.
+    *       @param _price: Price of NFT.
+    *
+    */
+    function listNFT(uint256 _tokenID, uint256 _price) external {
+        require(balanceOf(msg.sender, _tokenID) > 0, "Authorization Error: NFT doesn't belong to the user.");
+        require(_price > 0, 'Price must be greater than zero');
+        NFTPrice[_tokenID] = _price;
+    }
 }
