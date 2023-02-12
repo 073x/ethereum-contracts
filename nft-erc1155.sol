@@ -14,10 +14,11 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.3
 
 contract ThatGuyNFT1155 is ERC1155Burnable, Ownable {
     event NFTBought(address _sourceAdr, address _destinationAdr, uint256 _price);
+    event NFTBurned(uint256 _token, uint256 value);
 
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIDs;
-    mapping (uint256 => address) public originalArtist;
+    mapping (uint256 => address) public Creator;
     mapping (uint256 => uint256) public NFTPrice;
     mapping (uint256 => uint256) public NFTRoyalty;
 
@@ -40,7 +41,7 @@ contract ThatGuyNFT1155 is ERC1155Burnable, Ownable {
             amts[i] = 1;
             _tokenIDs.increment();
             ids[i] = _tokenIDs.current();
-            originalArtist[_tokenIDs.current()] = recipient; 
+            Creator[_tokenIDs.current()] = recipient; 
             NFTRoyalty[_tokenIDs.current()] = royalty;
         }
         bytes memory extra = bytes(tokenURI);
@@ -74,7 +75,7 @@ contract ThatGuyNFT1155 is ERC1155Burnable, Ownable {
     **/
     function buyNFT(address sourceAdr, address destinationAdr, uint256 _tokenID) external payable {
         uint256 price = NFTPrice[_tokenID];
-        address orgArtist = originalArtist[_tokenID];
+        address orgArtist = Creator[_tokenID];
         uint256 royalty = (price * NFTRoyalty[_tokenID]) / 1000;
 
         require(price > 0, 'The NFT is not listed or available for sale');
@@ -92,6 +93,26 @@ contract ThatGuyNFT1155 is ERC1155Burnable, Ownable {
         }
 
         emit NFTBought(sourceAdr, destinationAdr, price);
+    }
+
+
+    /**
+     *
+     *      burnNFT: Delete NFT(s)
+     *      @param _tokenID: NFT ID (hash).
+     *      @param value: 
+     *
+     *      @eventEmitter NFTBurned: To notify info regarding the NFT status.
+    **/
+    function burnNFT(uint256 _tokenId, uint256 value) external {
+        require(balanceOf(msg.sender, _tokenID) > 0, "Authorization Error: NFT doesn't belong to the user.");
+        delete NFTPrice[_tokenID];
+        delete NFTRoyalty[_tokenID];
+        delete Creator[_tokenID];
+
+        _burn(msg.sender, _tokenID, value);
+
+        emit NFTBurned(_tokenID, value);
     }
 
 }
