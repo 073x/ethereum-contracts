@@ -14,10 +14,13 @@ import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v4.3
 
 contract ThatGuyNFT1155 is ERC1155Burnable, Ownable {
     event NFTBought(address _sourceAdr, address _destinationAdr, uint256 _price);
+
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIDs;
     mapping (uint256 => address) public originalArtist;
     mapping (uint256 => uint256) public NFTPrice;
+    mapping (uint256 => uint256) public NFTRoyalty;
+
     constructor() ERC1155("ThatGuyNFT") {}
     
     /**
@@ -30,7 +33,7 @@ contract ThatGuyNFT1155 is ERC1155Burnable, Ownable {
     *       @returns Array of processed Transaction IDs. 
     *
     */
-    function mintBulkNFT(address recipient, uint256 amount, string memory tokenURI) external returns (uint256[] memory) {
+    function mintBulkNFT(address recipient, uint256 amount, string memory tokenURI, uint256 royalty) external returns (uint256[] memory) {
         uint256[] memory amts = new uint256[](amount);
         uint256[] memory ids = new uint256[](amount);
         for(uint i=0;i<amount;i++){
@@ -38,6 +41,7 @@ contract ThatGuyNFT1155 is ERC1155Burnable, Ownable {
             _tokenIDs.increment();
             ids[i] = _tokenIDs.current();
             originalArtist[_tokenIDs.current()] = recipient; 
+            NFTRoyalty[_tokenIDs.current()] = royalty;
         }
         bytes memory extra = bytes(tokenURI);
         _mintBatch(recipient, ids, amts, extra);
@@ -71,10 +75,21 @@ contract ThatGuyNFT1155 is ERC1155Burnable, Ownable {
     function buyNFT(address sourceAdr, address destinationAdr, uint256 _tokenID) external payable {
         uint256 price = NFTPrice[_tokenID];
         address orgArtist = originalArtist[_tokenID];
+        uint256 royalty = (price * NFTRoyalty[_tokenID]) / 1000;
+
         require(price > 0, 'The NFT is not listed or available for sale');
         require((msg.value) == price, "Error: The price doesn't match the value.");
         _safeTransferFrom(sourceAdr, destinationAdr, _tokenID, 1, "0x");
-        payable(sourceAdr).transfer(price);
+
+        if((sourceAdr != orgArtist) && (destinationAdr != orgArtist)){
+            // send the ETH royalty to creater
+            payable(orgArtist).transfer(royalty); 
+            // send the ETH to the owner
+            payable(fromaddr).transfer(price - royalty);
+        } else {
+            // send the ETH to the owner without royalty
+            payable(sourceAdr).transfer(price);
+        }
 
         emit NFTBought(sourceAdr, destinationAdr, price);
     }
